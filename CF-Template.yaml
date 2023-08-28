@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for deploying EC2 instance, VPC, subnets, and NAT Gateway
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: Optimus-VPC
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.0.0/24
+      AvailabilityZone: us-west-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Optimus-Public-Subnet
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: us-west-1c
+      Tags:
+        - Key: Name
+          Value: Optimus-Private-Subnet
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicRouteTable
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PrivateRouteTable
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: PublicRouteTable
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    DependsOn: PrivateRouteTable
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Optimus-GW
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      AllocationId: eipalloc-0b0cf71b4329b915e
+      Tags:
+        - Key: Name
+          Value: Optimus-NAT-GW
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SubnetId: !Ref PrivateSubnet
+      KeyName: CF-Key
+      ImageId: ami-02de2def7e6500339  
+      Tags:
+        - Key: Name
+          Value: Optimus-Server
+
+Outputs:
+  PublicSubnetId:
+    Description: ID of the public subnet
+    Value: !Ref PublicSubnet
+
+  PrivateSubnetId:
+    Description: ID of the private subnet
+    Value: !Ref PrivateSubnet
+
+  InstanceId:
+    Description: ID of the EC2 instance
+    Value: !Ref Instance
